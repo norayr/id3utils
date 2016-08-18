@@ -12,6 +12,8 @@ CONST id3BufLen = 128;
       offsetYear    = 93;
       offsetComment = 97;
 
+      fieldLength   = 30;
+
 TYPE
   string = id3helper.string;
 
@@ -72,12 +74,12 @@ BEGIN
 	HALT(1);
   END;
   (*debugArray(Buffer);*)
-  Extract(Buffer, offsetID, 3, tag.ID);                  
-  Extract(Buffer, offsetTitle, 30, tag.Title);           
-  Extract(Buffer, offsetArtist, 30, tag.Artist);         
-  Extract(Buffer, offsetAlbum, 30, tag.Album);           
-  Extract(Buffer, offsetYear, 4, tag.Year);              
-  Extract(Buffer, offsetComment, 30, tag.Comment);       
+  Extract(Buffer, offsetID,      3,            tag.ID);                  
+  Extract(Buffer, offsetTitle,   fieldLength,  tag.Title);           
+  Extract(Buffer, offsetArtist,  fieldLength,  tag.Artist);         
+  Extract(Buffer, offsetAlbum,   fieldLength,  tag.Album);           
+  Extract(Buffer, offsetYear,    4,            tag.Year);              
+  Extract(Buffer, offsetComment, 30,           tag.Comment);       
   tag.Genre := ORD(Buffer[id3BufLen - 1]);
 END readID3Tags;                 
 
