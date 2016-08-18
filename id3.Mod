@@ -9,7 +9,7 @@ TYPE
   string = id3helper.string;
 
   TID3Tag* = RECORD
-    ID*: ARRAY 3 OF CHAR;
+    ID*: ARRAY 4 OF CHAR;
     Title*: string;
     Artist*: string;
     Album*: string;
@@ -26,10 +26,27 @@ VAR
 BEGIN
  i := 0;
  REPEAT
-   Out.Int(i, 0); Out.Char(arr[i]); Out.Ln;
+   Out.Int(i, 0); Out.String(": "); Out.Char(arr[i]); Out.Ln;
    INC(i)
  UNTIL i >= LEN(arr);
 END debugArray;
+
+PROCEDURE Extract(VAR src: ARRAY OF CHAR; pos, num: INTEGER; VAR dst: ARRAY OF CHAR);
+VAR
+  i, j : INTEGER;
+BEGIN
+  i := pos;
+  j := 0;
+  REPEAT
+    dst[j] := src[i];
+	INC(j); INC(i);
+  UNTIL (j = LEN(dst) - 1) OR (src[i] = 0X);
+
+  WHILE j < LEN(dst) - 1 DO
+    dst[j] := 0X;
+	INC(j)
+  END
+END Extract;
 
 PROCEDURE readID3Tags*(fileName: ARRAY OF CHAR; VAR tag: TID3Tag);
 VAR
@@ -47,13 +64,13 @@ BEGIN
     Out.String("file not found"); Out.Ln;
 	HALT(1);
   END;
-  debugArray(Buffer);
-  Strings.Extract(Buffer, 0, 2, tag.ID);
-  Strings.Extract(Buffer, 3, 30, tag.Title);
-  Strings.Extract(Buffer, 33, 30, tag.Artist);
-  Strings.Extract(Buffer, 63, 30, tag.Album);
-  Strings.Extract(Buffer, 93, 4, tag.Year);
-  Strings.Extract(Buffer, 97, 30, tag.Comment);
+  (*debugArray(Buffer);*)
+  Extract(Buffer, 0, 3, tag.ID);
+  Extract(Buffer, 3, 29, tag.Title);
+  Extract(Buffer, 33, 29, tag.Artist);
+  Extract(Buffer, 63, 29, tag.Album);
+  Extract(Buffer, 93, 3, tag.Year);
+  Extract(Buffer, 97, 29, tag.Comment);
   tag.Genre := ORD(Buffer[127]);
   (* test *)
   Out.String("tag "); Out.String(tag.ID); Out.Ln;
