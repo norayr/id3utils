@@ -5,6 +5,13 @@ IMPORT id3helper, Out := Console, Strings, Files;
 CONST id3BufLen = 128;
       genresLen = 147;
 
+      offsetID      = 0;
+      offsetTitle   = 3;
+      offsetArtist  = 33;
+      offsetAlbum   = 63;
+      offsetYear    = 93;
+      offsetComment = 97;
+
 TYPE
   string = id3helper.string;
 
@@ -13,7 +20,7 @@ TYPE
     Title*: string;
     Artist*: string;
     Album*: string;
-    Year*: ARRAY 4 OF CHAR;
+    Year*: ARRAY 5 OF CHAR;
     Comment: string;
     Genre*: INTEGER;
   END;
@@ -65,22 +72,13 @@ BEGIN
 	HALT(1);
   END;
   (*debugArray(Buffer);*)
-  Extract(Buffer, 0, 3, tag.ID);
-  Extract(Buffer, 3, 29, tag.Title);
-  Extract(Buffer, 33, 29, tag.Artist);
-  Extract(Buffer, 63, 29, tag.Album);
-  Extract(Buffer, 93, 3, tag.Year);
-  Extract(Buffer, 97, 29, tag.Comment);
-  tag.Genre := ORD(Buffer[127]);
-  (* test *)
-  Out.String("tag "); Out.String(tag.ID); Out.Ln;
-  Out.String("title "); Out.String(tag.Title); Out.Ln;
-  Out.String("artist "); Out.String(tag.Artist); Out.Ln;
-  Out.String("album "); Out.String(tag.Year); Out.Ln;
-  Out.String("genre "); Out.Int(tag.Genre, 0); Out.Ln
-
-
-  (* end of test *)
+  Extract(Buffer, offsetID, 3, tag.ID);                  
+  Extract(Buffer, offsetTitle, 30, tag.Title);           
+  Extract(Buffer, offsetArtist, 30, tag.Artist);         
+  Extract(Buffer, offsetAlbum, 30, tag.Album);           
+  Extract(Buffer, offsetYear, 4, tag.Year);              
+  Extract(Buffer, offsetComment, 30, tag.Comment);       
+  tag.Genre := ORD(Buffer[id3BufLen - 1]);
 END readID3Tags;                 
 
 PROCEDURE InitGenresArray;
