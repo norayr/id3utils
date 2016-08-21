@@ -1,6 +1,6 @@
 MODULE id3;
 
-IMPORT id3helper, Out := Console, Strings, Files;
+IMPORT Out := Console, Strings, Files;
 
 CONST id3BufLen = 128;
       genresLen = 147;
@@ -15,21 +15,27 @@ CONST id3BufLen = 128;
       fieldLength   = 30;
 
 TYPE
-  string = id3helper.string;
+  TString* = ARRAY 30 OF CHAR;
+  TID*     = ARRAY 4 OF CHAR;
+  TYear*   = ARRAY 5 OF CHAR;
+  TTitle*  = TString;
+  TArtist* = TString;
+  TAlbum*  = TString;
+  TComment* = TString;
 
   TID3Tag* = RECORD
-    ID*: ARRAY 4 OF CHAR;
-    Title*: string;
-    Artist*: string;
-    Album*: string;
-    Year*: ARRAY 5 OF CHAR;
-    Comment: string;
+    ID*: TID;
+    Title*: TString;
+    Artist*: TString;
+    Album*: TString;
+    Year*: TYear;
+    Comment: TString;
     Genre*: INTEGER;
   END;
 
-VAR Genres* : ARRAY genresLen OF string;
+VAR Genres* : ARRAY genresLen OF TString;
 
-PROCEDURE debugArray(VAR arr : ARRAY OF CHAR);
+PROCEDURE outArray(VAR arr : ARRAY OF CHAR);
 VAR
   i : INTEGER;
 BEGIN
@@ -38,7 +44,24 @@ BEGIN
    Out.Int(i, 0); Out.String(": "); Out.Char(arr[i]); Out.Ln;
    INC(i)
  UNTIL i >= LEN(arr);
-END debugArray;
+END outArray;
+
+PROCEDURE dumpArray(VAR arr: ARRAY OF CHAR);
+VAR
+  F: Files.File;
+  R: Files.Rider;
+  i: INTEGER;
+BEGIN
+  F := Files.New("array.dump");
+  Files.Set(R, F, 0);
+  i := 0;
+  REPEAT
+    Files.Write(R, arr[i]);
+    INC(i);
+  UNTIL i = LEN(arr)-1;
+  Files.Register(F);
+  Files.Close(F);
+END dumpArray;
 
 PROCEDURE Extract(VAR src: ARRAY OF CHAR; pos, num: INTEGER; VAR dst: ARRAY OF CHAR);
 VAR
@@ -70,10 +93,11 @@ BEGIN
 	Files.Set(R, F, len - id3BufLen);
 	Files.ReadBytes(R, Buffer, id3BufLen)
   ELSE
-    Out.String("file not found"); Out.Ln;
+    Out.String("cannot open file '"); Out.String(fileName); Out.Char("'"); Out.Ln;
 	HALT(1);
   END;
   (*debugArray(Buffer);*)
+  (*dumpArray(Buffer);*)
   Extract(Buffer, offsetID,      3,            tag.ID);                  
   Extract(Buffer, offsetTitle,   fieldLength,  tag.Title);           
   Extract(Buffer, offsetArtist,  fieldLength,  tag.Artist);         
@@ -82,6 +106,104 @@ BEGIN
   Extract(Buffer, offsetComment, 30,           tag.Comment);       
   tag.Genre := ORD(Buffer[id3BufLen - 1]);
 END readID3Tags;                 
+
+PROCEDURE fillZeros(VAR str: ARRAY OF CHAR);
+VAR
+  i: LONGINT;
+BEGIN
+  i := LEN(str) -1;
+  WHILE str[i] # 0X DO
+    str[i] := 0X;
+    DEC(i)
+  END
+END fillZeros;
+
+PROCEDURE writeTagToFile*(VAR fileName: ARRAY OF CHAR; offset: LONGINT; VAR string: ARRAY OF CHAR);
+VAR
+  F: Files.File;
+  R: Files.Rider;
+  len, i: LONGINT;
+BEGIN
+  F := Files.Old (fileName);
+  IF F # NIL THEN
+    len := Files.Length(F);
+	Files.Set(R, F, len - id3BufLen + offset);
+	Files.WriteBytes(R, string, LEN(string) - 1)
+  ELSE
+    Out.String("cannot open file '"); Out.String(fileName); Out.Char("'"); Out.Ln;
+	HALT(1);
+  END;
+  Files.Register(F);
+  Files.Close(F)
+END writeTagToFile;
+
+PROCEDURE writeIDTagToFile*(fileName: ARRAY OF CHAR; id: TID);
+BEGIN
+  writeTagToFile(fileName, offsetID, id)
+END writeIDTagToFile;
+
+PROCEDURE writeTitleTagToFile*(fileName: ARRAY OF CHAR; title: TTitle);
+BEGIN
+  writeTagToFile(fileName, offsetTitle, title)
+END writeTitleTagToFile;
+
+PROCEDURE writeArtistTagToFile*(fileName: ARRAY OF CHAR; artist: TArtist);
+BEGIN
+  writeTagToFile(fileName, offsetArtist, artist)
+END writeArtistTagToFile;
+
+PROCEDURE writeAlbumTagToFile*(fileName: ARRAY OF CHAR; album: TAlbum);
+BEGIN
+  writeTagToFile(fileName, offsetAlbum, album)
+END writeAlbumTagToFile;
+
+PROCEDURE writeYearTagToFile*(fileName: ARRAY OF CHAR; year: TYear);
+BEGIN
+  writeTagToFile(fileName, offsetYear, year)
+END writeYearTagToFile;
+
+PROCEDURE writeCommentTagToFile*(fileName: ARRAY OF CHAR; comment: TComment);
+BEGIN
+  writeTagToFile(fileName, offsetComment, comment)
+END writeCommentTagToFile;
+
+PROCEDURE writeTag(VAR F: Files.File; VAR R: Files.Rider; offset: INTEGER; string: ARRAY OF CHAR);
+VAR
+  len: LONGINT;
+BEGIN
+  len := Files.Length(F);
+  Files.Set(R, F, len - id3BufLen + offset);
+  Files.WriteBytes(R, string, LEN(string) - 1)
+END writeTag;
+
+PROCEDURE writeID3Tags(VAR fileName: ARRAY OF CHAR; tag: TID3Tag);
+VAR
+  F: Files.File;
+  R: Files.Rider;
+  len, i: LONGINT;
+BEGIN
+  fillZeros(tag.Title);
+  fillZeros(tag.Artist);
+  fillZeros(tag.Album);
+  fillZeros(tag.Comment);
+
+  F:= Files.Old(fileName);
+  IF F # NIL THEN
+    len := Files.Length(F);
+	Files.Set(R, F, len - id3BufLen);
+    writeTag(F, R, offsetID, tag.ID);
+    writeTag(F, R, offsetTitle, tag.Title);
+    writeTag(F, R, offsetArtist, tag.Artist);
+    writeTag(F, R, offsetAlbum, tag.Album);
+    writeTag(F, R, offsetYear, tag.Year);
+	writeTag(F, R, offsetComment, tag.Comment);
+    Files.WriteInt(R, tag.Genre);
+	Files.Register(F);
+	Files.Close(F);
+  ELSE
+    Out.String("cannot open file '"); Out.String(fileName); Out.Char("'"); Out.Ln;
+  END;
+END writeID3Tags;
 
 PROCEDURE InitGenresArray;
 BEGIN
